@@ -1,0 +1,59 @@
+#!/bin/bash
+version="0.0.1"
+
+n=10
+snakes=()
+declare -A snake_addrs
+declare -A snake_scores
+snake_scores["draw"]=0
+
+print_usage() {
+	printf "Usage: ..."
+}
+
+# parse arguments
+while [[ "$1" =~ ^- && ! "$1" == "--" ]]; do case $1 in
+	-v | --version )
+		echo $version
+		exit
+    	;;
+	-s | --snake )
+    	shift
+		snake=${1%%=*}
+		addr=${1#*=}
+		snakes+=($snake)
+		snake_addrs[$snake]="$addr"
+		snake_scores[$snake]=0
+    	;;
+	-n | --num_games )
+		shift
+		n=$1
+		;;
+esac; shift; done
+
+# construct battlesnake CLI params
+params=""
+for snake in "${snakes[@]}"; do
+	params+=" --name $snake --url ${snake_addrs[$snake]}"
+done
+
+# run x games in a loop and count the wins of each snake
+for ((i=0; i<n; i++)); do
+	echo -ne "progress: $i/$n\r"
+	result=$(battlesnake play -W 11 -H 11 -g standard $(echo "$params") 2>&1 | grep "Game completed")
+	echo "$result"
+	if [[ $result =~ .*draw.* ]]; then
+		snake_scores["draw"]=$((snake_scores["draw"] + 1))
+	fi
+	for snake in "${snakes[@]}"; do
+		if [[ $result =~ .*$snake.* ]]; then
+			snake_scores[$snake]=$((snake_scores[$snake] + 1))
+		fi
+	done
+done
+
+echo " "
+for snake in "${snakes[@]}"; do
+	echo "$snake : ${snake_scores[$snake]}"
+done
+echo "draw : ${snake_scores["draw"]}"
